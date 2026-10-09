@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Space‑Adventure Charity Form</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Light‑mode toggle (already in your page) -->
+    <label class="theme-switch" for="themeToggle">
+        <input type="checkbox" id="themeToggle" aria-label="Toggle light / dark mode">
+        <span class="slider"></span>
+        <span class="icon">🌞</span>
+    </label>
+
+    <div class="space-container">
+        <div class="starfield-layer stars-fine"></div>
+        <div class="starfield-layer stars-bright"></div>
+    </div>
+
+    <div class="cosmic-card">
+        <!-- FORM VIEW -->
+        <div id="formView">
+            <header>
+                <h1>Mission Control</h1>
+                <p class="subtitle">Discover your cosmic powers & map your future career path!</p>
+            </header>
+
+            <form id="cosmicForm" onsubmit="handleCosmicSubmit(event)">
+                <div class="form-group">
+                    <label for="fullName">Astronaut Name</label>
+                    <input type="text" id="fullName" required placeholder="Enter your full name…">
+                </div>
+
+                <div class="form-group">
+                    <label for="birthdate">Cosmic Earth Entry Date (Birthday)</label>
+                    <input type="date" id="birthdate" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Hyper‑wave Matrix (Your Email)</label>
+                    <input type="email" id="email" required placeholder="e.g. pilot@galaxy.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="dreamJob">Your Destiny Mission (Dream Job)</label>
+                    <input type="text" id="dreamJob" required placeholder="What do you want to be?">
+                </div>
+
+                <button type="submit">Launch Star Mapping 🚀</button>
+            </form>
+        </div>
+
+        <!-- SUCCESS VIEW (shown after the request succeeds) -->
+        <div id="successView" class="success-view hidden">
+            <header>
+                <h1>Star Map Decoded!</h1>
+                <p class="subtitle">Your cosmic e‑mail is on its way.</p>
+            </header>
+
+            <div class="zodiac-badge">
+                <div class="zodiac-symbol" id="zodiacSymbol">⭐</div>
+                <div class="zodiac-name" id="zodiacName">Cosmos</div>
+            </div>
+
+            <div id="messageOutput"></div>
+        </div>
+    </div>
+  <script>
+    // -----------------------------------------------------------------
+        // Light‑mode toggle 
+        // -----------------------------------------------------------------
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.addEventListener('change', e => {
+            document.body.classList.toggle('light-mode', e.target.checked);
+        });
+
+        // -----------------------------------------------------------------
+        // Helper: escape HTML (prevents XSS in the success view)
+        // -----------------------------------------------------------------
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // -----------------------------------------------------------------
+        // MAIN – submit handler (now only sends to the /api/submit endpoint)
+        // -----------------------------------------------------------------
+        async function handleCosmicSubmit(event) {
+            event.preventDefault();
+
+            const fullName = document.getElementById('fullName').value.trim();
+            const birthdate = document.getElementById('birthdate').value;
+            const email = document.getElementById('email').value.trim();
+            const dreamJob = document.getElementById('dreamJob').value.trim();
+
+            // Minimal client‑side validation
+            if (!fullName || !birthdate || !email || !dreamJob) {
+                alert('Please fill out all fields.');
+                return;
+            }
+
+            // Show a tiny loading spinner (you already have a hidden class)
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.disabled = true;
+            if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+            // Build payload – the backend will compute zodiac & AI‑text.
+            const payload = {
+                fullName,
+                birthdate,
+                email,
+                dreamJob,
+                // These fields are ignored by the server but kept for
+                // backward compatibility with the Pydantic model.
+                zodiac: '',
+                zodiacSymbol: '',
+                encouragement: '',
+                htmlMessage: ''
+            };
+
+            try {
+                const resp = await fetch('/api/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+
+                if (data.status !== 'ok') {
+                    alert(`⚠️ ${data.message}\n${data.error || ''}`);
+                    return;
+                }
+
+                // Populate the success view with basic info
+                document.getElementById('zodiacSymbol').textContent = data.symbol || '⭐';
+                document.getElementById('zodiacName').textContent = data.zodiac || 'Cosmos';
+                document.getElementById('messageOutput').innerHTML = `
+                    <p>Hi <strong>${escapeHTML(fullName)}</strong>! Your e‑mail is on its way.</p>
+                    <p>Check your inbox for the full “star map” report.</p>
+                `;
+
+                document.getElementById('formView').classList.add('hidden');
+                document.getElementById('successView').classList.remove('hidden');
+            } catch (err) {
+                console.error(err);
+                alert('Something went wrong while contacting the server.');
+            } finally {
+                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                if (submitBtn) submitBtn.disabled = false;
+            }
+        }
+</script>
+ <!-- -------------------------------------------------------------
+         OPTIONAL lightweight loading overlay 
+         ------------------------------------------------------------- -->
+    <div id="loadingOverlay" class="loading hidden" aria-live="polite">
+        <div class="spinner"></div>
+        <p>Launching mission…</p>
+    </div>
+</body>
+</html>
